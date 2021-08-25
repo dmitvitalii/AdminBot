@@ -17,7 +17,7 @@ logger = logging.getLogger()
 
 ADMIN_NICKNAMES = os.environ['ADMINS'].split(' ')
 RESTRICT = types.ChatPermissions(False, False, False, False, False, False, False, False)
-TIMEOUT = os.environ.get('TIMEOUT', 15 * 60)
+TIMEOUT = int(os.environ.get('TIMEOUT', 15 * 60))
 
 ids = []
 

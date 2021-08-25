@@ -99,7 +99,7 @@ async def any_message(message: types.Message):
         Timer(TIMEOUT, mark_for_edit)
         return
     if a_type == Type.INVALID:
-        await message.reply('Укажите тэги по правилам')
+        await message.reply('Укажите тэги по правилам: либо тэг #вакансия, либо тэги #резюме #ищу')
         ids.append(message.message_id)
         Timer(TIMEOUT, mark_for_edit)
         return

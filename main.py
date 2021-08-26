@@ -18,6 +18,7 @@ logger = logging.getLogger()
 ADMIN_NICKNAMES = os.environ['ADMINS'].split(' ')
 RESTRICT = types.ChatPermissions(False, False, False, False, False, False, False, False)
 TIMEOUT = int(os.environ.get('TIMEOUT', 15 * 60))
+DEBUG = int(os.environ.get('DEBUG', 1))
 
 ids = []
 
@@ -154,4 +155,10 @@ def check_type(hashtags):
 
 
 if __name__ == '__main__':
-    executor.start_polling(dp, skip_updates=True)
+    if DEBUG:
+        executor.start_polling(dp, skip_updates=True)
+    else:
+        host = os.environ['URL']
+        port = os.environ['PORT']
+        webhook = f'http://{host}:{port}/'
+        executor.start_webhook(dp, webhook, host=host, port=port)

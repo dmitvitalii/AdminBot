@@ -160,5 +160,4 @@ if __name__ == '__main__':
     else:
         host = os.environ['HOST']
         port = os.environ['PORT']
-        webhook = f'http://{host}:{port}/'
-        executor.start_webhook(dp, webhook, host=host, port=port)
+        executor.start_webhook(dp, '/', host=host, port=port)

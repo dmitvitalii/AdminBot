@@ -158,7 +158,7 @@ if __name__ == '__main__':
     if DEBUG:
         executor.start_polling(dp, skip_updates=True)
     else:
-        host = os.environ['URL']
+        host = os.environ['HOST']
         port = os.environ['PORT']
         webhook = f'http://{host}:{port}/'
         executor.start_webhook(dp, webhook, host=host, port=port)

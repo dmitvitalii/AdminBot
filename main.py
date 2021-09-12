@@ -163,5 +163,5 @@ if __name__ == '__main__':
         executor.start_polling(dp, skip_updates=True)
     else:
         host = os.environ['HOST']
-        port = os.environ['PORT']
+        port = int(os.environ['PORT'])
         executor.start_webhook(dp, '/', host=host, port=port)

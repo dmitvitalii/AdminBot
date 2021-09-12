@@ -155,6 +155,10 @@ def check_type(hashtags):
 
 
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.DEBUG if DEBUG else logging.INFO,
+        format="[%(levelname)s] %(asctime)s: %(name)s - %(message)s",
+    )
     if DEBUG:
         executor.start_polling(dp, skip_updates=True)
     else:

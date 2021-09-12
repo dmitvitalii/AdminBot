@@ -1,7 +1,7 @@
 from enum import Enum, auto
 
 
-class Type(Enum):
+class PostType(Enum):
     CV_OK = auto()
     VACANCY_OK = auto()
     TAGS_OK = auto()

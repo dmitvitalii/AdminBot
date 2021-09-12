@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
-import os
 import logging
+import os
 from datetime import timedelta
 
-from aiogram import Bot, Dispatcher, executor, types
-from aiogram.types import ContentType, ContentTypes
+from aiogram import Bot, Dispatcher, executor
+from aiogram.types import ContentType, ContentTypes, ChatPermissions, Message
 
 from Timer import Timer
-from parser import Type
+from Types import PostType
 
 bot = Bot(token=os.environ['API_TOKEN'])
 dp = Dispatcher(bot)
@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger()
 
 ADMIN_NICKNAMES = os.environ['ADMINS'].split(' ')
-RESTRICT = types.ChatPermissions(False, False, False, False, False, False, False, False)
+RESTRICT = ChatPermissions(False, False, False, False, False, False, False, False)
 TIMEOUT = int(os.environ.get('TIMEOUT', 15 * 60))
 DEBUG = int(os.environ.get('DEBUG', 1))
 
@@ -24,7 +24,7 @@ ids = []
 
 
 @dp.message_handler(commands='history')
-async def start(message: types.Message):
+async def start(message: Message):
     if message.from_user.username not in ADMIN_NICKNAMES:
         await message.reply('Эта команда только для админов')
         return
@@ -40,26 +40,26 @@ async def start(message: types.Message):
 def second_chance_failed(hashtags):
     a_type = check_type(hashtags)
     return any((
-        a_type == Type.INVALID,
-        a_type == Type.NOT_RUSSIAN_VACANCY,
-        a_type == Type.NO_TAGS,
-        a_type == Type.OVERLAPPED_TAGS,
+        a_type == PostType.INVALID,
+        a_type == PostType.NOT_RUSSIAN_VACANCY,
+        a_type == PostType.NO_TAGS,
+        a_type == PostType.OVERLAPPED_TAGS,
     ))
 
 
-def get_hashtags(message: types.Message):
+def get_hashtags(message: Message):
     return [message.text[m.offset:m.offset + m.length] for m in message.entities if m['type'] == 'hashtag']
 
 
 @dp.edited_message_handler()
-async def edited_message(message: types.Message):
+async def edited_message(message: Message):
     if message.message_id in ids:
         if not second_chance_failed(get_hashtags(message)):
             ids.remove(message.message_id)
 
 
 @dp.message_handler(content_types=ContentTypes.ANY)
-async def any_message(message: types.Message):
+async def any_message(message: Message):
     admin_ids = [member.user.id for member in await bot.get_chat_administrators(message.chat.id)]
     regular_user = message.from_user.id not in admin_ids or message.from_user.username not in ADMIN_NICKNAMES
 
@@ -94,22 +94,22 @@ async def any_message(message: types.Message):
         return
 
     a_type = check_type(hashtags)
-    if a_type == Type.OVERLAPPED_TAGS:
+    if a_type == PostType.OVERLAPPED_TAGS:
         await message.reply('Укажите один тип тэгов: #вакансия для вакансий, #ищу и #резюме для соискателей')
         ids.append(message.message_id)
         Timer(TIMEOUT, mark_for_edit)
         return
-    if a_type == Type.INVALID:
+    if a_type == PostType.INVALID:
         await message.reply('Укажите тэги по правилам: либо тэг #вакансия, либо тэги #резюме #ищу')
         ids.append(message.message_id)
         Timer(TIMEOUT, mark_for_edit)
         return
-    if a_type == Type.NOT_RUSSIAN_VACANCY:
+    if a_type == PostType.NOT_RUSSIAN_VACANCY:
         await message.reply('Укажите тэг #вакансия на русском')
         ids.append(message.message_id)
         Timer(TIMEOUT, mark_for_edit)
     a_type = check_recommendations(hashtags)
-    if a_type == Type.NOT_ENGLISH_PLATFORM:
+    if a_type == PostType.NOT_ENGLISH_PLATFORM:
         await message.reply('Для лучшего поиска добавьте тэг платформы на английском: #android, #ios')
 
 
@@ -129,11 +129,11 @@ def check_recommendations(hashtags):
     no_english_android = '#android' not in hashtags
     no_english_ios = '#ios' not in hashtags
     if no_english_android and android_not_english:
-        return Type.NOT_ENGLISH_PLATFORM
+        return PostType.NOT_ENGLISH_PLATFORM
     if no_english_ios and ios_not_english:
-        return Type.NOT_ENGLISH_PLATFORM
+        return PostType.NOT_ENGLISH_PLATFORM
     else:
-        return Type.TAGS_OK
+        return PostType.TAGS_OK
 
 
 def check_type(hashtags):
@@ -143,15 +143,15 @@ def check_type(hashtags):
     not_russian_vacancy = ('#vacancy' in hashtags or '#вакансiя' in hashtags) and not has_vacancy_tag
 
     if has_cv_tag and has_vacancy_tag:
-        return Type.OVERLAPPED_TAGS
+        return PostType.OVERLAPPED_TAGS
     if not_russian_vacancy:
-        return Type.NOT_RUSSIAN_VACANCY
+        return PostType.NOT_RUSSIAN_VACANCY
     if has_cv_tag:
-        return Type.CV_OK
+        return PostType.CV_OK
     if has_vacancy_tag:
-        return Type.VACANCY_OK
+        return PostType.VACANCY_OK
     else:
-        return Type.INVALID
+        return PostType.INVALID
 
 
 if __name__ == '__main__':

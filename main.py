@@ -120,9 +120,10 @@ async def any_message(message: Message):
         answer = await message.reply('Укажите тэг #вакансия на русском')
         ids[message.message_id] = answer
         Timer(TIMEOUT, mark_for_edit)
-    a_type = check_recommendations(hashtags)
-    if a_type == PostType.NOT_ENGLISH_PLATFORM:
-        await message.reply('Для лучшего поиска добавьте тэг платформы на английском: #android, #ios')
+    # TODO: make recommendation message disappear
+    # a_type = check_recommendations(hashtags)
+    # if a_type == PostType.NOT_ENGLISH_PLATFORM:
+    #     await message.reply('Для лучшего поиска добавьте тэг платформы на английском: #android, #ios')
 
 
 def check_recommendations(hashtags):

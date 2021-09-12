@@ -17,15 +17,16 @@ logger = logging.getLogger()
 
 ADMIN_NICKNAMES = os.environ['ADMINS'].split(' ')
 RESTRICT = ChatPermissions(False, False, False, False, False, False, False, False)
-TIMEOUT = int(os.environ.get('TIMEOUT', 15 * 60))
+TIMEOUT = int(os.environ.get('TIMEOUT', 10))
 DEBUG = int(os.environ.get('DEBUG', 1))
 
-ids = []
+# TODO: use an appropriate storage
+ids = {}
 
 
 @dp.message_handler(commands='history')
 async def start(message: Message):
-    if message.from_user.username not in ADMIN_NICKNAMES:
+    if is_user_regular(message):
         await message.reply('Эта команда только для админов')
         return
     if not message.text:
@@ -51,26 +52,35 @@ def get_hashtags(message: Message):
     return [message.text[m.offset:m.offset + m.length] for m in message.entities if m['type'] == 'hashtag']
 
 
+async def is_user_regular(message: Message):
+    admin_ids = [member.user.id for member in await bot.get_chat_administrators(message.chat.id)]
+    return message.from_user.id not in admin_ids or message.from_user.username not in ADMIN_NICKNAMES
+
+
 @dp.edited_message_handler()
 async def edited_message(message: Message):
+    if not await is_user_regular(message):
+        return
     if message.message_id in ids:
         if not second_chance_failed(get_hashtags(message)):
-            ids.remove(message.message_id)
+            if ids[message.message_id]:
+                await ids[message.message_id].delete()
+            del ids[message.message_id]
 
 
 @dp.message_handler(content_types=ContentTypes.ANY)
 async def any_message(message: Message):
-    admin_ids = [member.user.id for member in await bot.get_chat_administrators(message.chat.id)]
-    regular_user = message.from_user.id not in admin_ids or message.from_user.username not in ADMIN_NICKNAMES
+    if not await is_user_regular(message):
+        return
 
-    if regular_user and message.content_type != ContentType.TEXT:
+    if message.content_type != ContentType.TEXT:
         await message.delete()
         return
 
     hashtags = get_hashtags(message)
 
     async def mark_for_edit():
-        if regular_user:
+        if await is_user_regular(message):
             if message.message_id in ids:
                 await bot.restrict_chat_member(
                     chat_id=message.chat.id,
@@ -79,34 +89,36 @@ async def any_message(message: Message):
                     until_date=timedelta(days=7),
                 )
                 await message.delete()
-                ids.remove(message.message_id)
+                if ids[message.message_id]:
+                    await ids[message.message_id].delete()
+                del ids[message.message_id]
         else:
             await message.reply('Hello, admin')
 
     if not len(hashtags):
-        if regular_user:
-            if '#' in message.text:
-                await message.answer('Поставьте пробелы между тэгами, например: #вакансия #android #ios')
-                ids.append(message.message_id)
-                Timer(TIMEOUT, mark_for_edit)
-            else:
-                await message.delete()
-        return
+        if '#' in message.text:
+            answer = await message.answer('Поставьте пробелы между тэгами, например: #вакансия #android #ios')
+            ids[message.message_id] = answer
+            Timer(TIMEOUT, mark_for_edit)
+            return
+        else:
+            await message.delete()
+            return
 
     a_type = check_type(hashtags)
     if a_type == PostType.OVERLAPPED_TAGS:
-        await message.reply('Укажите один тип тэгов: #вакансия для вакансий, #ищу и #резюме для соискателей')
-        ids.append(message.message_id)
+        answer = await message.reply('Укажите один тип тэгов: #вакансия для вакансий, #ищу и #резюме для соискателей')
+        ids[message.message_id] = answer
         Timer(TIMEOUT, mark_for_edit)
         return
     if a_type == PostType.INVALID:
-        await message.reply('Укажите тэги по правилам: либо тэг #вакансия, либо тэги #резюме #ищу')
-        ids.append(message.message_id)
+        answer = await message.reply('Укажите тэги по правилам: либо тэг #вакансия, либо тэги #резюме #ищу')
+        ids[message.message_id] = answer
         Timer(TIMEOUT, mark_for_edit)
         return
     if a_type == PostType.NOT_RUSSIAN_VACANCY:
-        await message.reply('Укажите тэг #вакансия на русском')
-        ids.append(message.message_id)
+        answer = await message.reply('Укажите тэг #вакансия на русском')
+        ids[message.message_id] = answer
         Timer(TIMEOUT, mark_for_edit)
     a_type = check_recommendations(hashtags)
     if a_type == PostType.NOT_ENGLISH_PLATFORM:
